@@ -1,0 +1,6 @@
+/* Esconde as setinhas de aumentar/diminuir dos inputs de número */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
