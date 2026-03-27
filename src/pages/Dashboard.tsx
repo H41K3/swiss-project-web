@@ -18,11 +18,13 @@ interface Transacao {
 
 interface Cartao {
   id: number;
-  nome: string;
-  final: string;
-  limite: number;
-  faturaAtual: number;
-  cor: string;
+  nome?: string; // O Backend envia como 'name'
+  name?: string; // Mapeando ambas as possibilidades
+  lastDigits: string;
+  totalLimit: number;
+  currentInvoice: number;
+  cor?: string; // O Backend envia como 'color'
+  color?: string; // Mapeando ambas as possibilidades
 }
 
 export function Dashboard() {
@@ -73,24 +75,7 @@ export function Dashboard() {
   // ==========================================
   // 4. ESTADOS: MEUS CARTÕES
   // ==========================================
-  const [cartoes, setCartoes] = useState<Cartao[]>([
-    {
-      id: 1,
-      nome: "Nubank",
-      final: "4321",
-      limite: 5000,
-      faturaAtual: 1250.5,
-      cor: "#8A05BE",
-    },
-    {
-      id: 2,
-      nome: "Banco Inter",
-      final: "9876",
-      limite: 3000,
-      faturaAtual: 0,
-      cor: "#FF7A00",
-    },
-  ]);
+  const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [novoCartaoNome, setNovoCartaoNome] = useState("");
   const [novoCartaoFinal, setNovoCartaoFinal] = useState("");
@@ -110,6 +95,7 @@ export function Dashboard() {
   useEffect(() => {
     buscarTudo();
     buscarCotacoes();
+    buscarCartoes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -196,7 +182,6 @@ export function Dashboard() {
   // FUNÇÕES: INÍCIO (HOME)
   // ==========================================
 
-  // Tratamento dos inputs (Estavam faltando!)
   const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNovaDescricao(e.target.value.replace(/[0-9]/g, ""));
   };
@@ -293,7 +278,41 @@ export function Dashboard() {
   // ==========================================
   // FUNÇÕES: MEUS CARTÕES
   // ==========================================
-  const handleAddCartao = (e: React.FormEvent) => {
+
+  const buscarCartoes = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const resposta = await axios.get(
+        "https://swiss-project-api.onrender.com/api/v1/cards",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      setCartoes(resposta.data);
+    } catch (erro) {
+      console.error("Erro ao buscar cartões:", erro);
+    }
+  };
+
+  const handleDeleteCartao = async (id: number) => {
+    if (!window.confirm("Tem certeza que deseja excluir este cartão?")) return;
+    const token = localStorage.getItem("token");
+    try {
+      await axios.delete(
+        `https://swiss-project-api.onrender.com/api/v1/cards/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      buscarCartoes();
+    } catch (erro) {
+      console.error("Erro ao excluir cartão:", erro);
+      alert("Erro ao excluir o cartão.");
+    }
+  };
+
+  const handleAddCartao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoCartaoNome || !novoCartaoFinal || !novoCartaoLimite) return;
 
@@ -302,23 +321,34 @@ export function Dashboard() {
     );
     if (isNaN(limiteNumerico)) return alert(t.errorValue);
 
-    setCartoes([
-      ...cartoes,
-      {
-        id: Date.now(),
-        nome: novoCartaoNome,
-        final: novoCartaoFinal,
-        limite: limiteNumerico,
-        faturaAtual: 0,
-        cor: novoCartaoCor,
-      },
-    ]);
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-    setIsCardModalOpen(false);
-    setNovoCartaoNome("");
-    setNovoCartaoFinal("");
-    setNovoCartaoLimite("");
-    setNovoCartaoCor("#8A05BE");
+    try {
+      await axios.post(
+        "https://swiss-project-api.onrender.com/api/v1/cards",
+        {
+          name: novoCartaoNome,
+          lastDigits: novoCartaoFinal,
+          totalLimit: limiteNumerico,
+          color: novoCartaoCor,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      setIsCardModalOpen(false);
+      setNovoCartaoNome("");
+      setNovoCartaoFinal("");
+      setNovoCartaoLimite("");
+      setNovoCartaoCor("#8A05BE");
+
+      buscarCartoes();
+    } catch (erro) {
+      console.error("Erro ao criar cartão:", erro);
+      alert("Erro ao salvar o cartão. Verifique os dados.");
+    }
   };
 
   // ==========================================
@@ -447,7 +477,7 @@ export function Dashboard() {
   const AppLogo = ({ size = 45 }: { size?: number }) => (
     <div
       style={{
-        backgroundColor: "#faf8f8",
+        backgroundColor: "#fff",
         borderRadius: "10px",
         width: `${size}px`,
         height: `${size}px`,
@@ -465,7 +495,7 @@ export function Dashboard() {
           height: "100%",
           width: "100%",
           objectFit: "cover",
-          transform: "scale(1.4)",
+          transform: "scale(1.3)",
         }}
       />
     </div>
@@ -636,6 +666,7 @@ export function Dashboard() {
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               padding: 0,
             }}
           >
@@ -1623,7 +1654,12 @@ export function Dashboard() {
         {/* ================= ABA 3: MEUS CARTÕES ================= */}
         {abaAtiva === "cards" && (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.5rem",
+              alignItems: "center",
+            }}
           >
             <div
               style={{
@@ -1634,6 +1670,8 @@ export function Dashboard() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                width: "100%",
+                maxWidth: "750px",
               }}
             >
               <h2 style={{ color: "#333", margin: 0, fontSize: "1.3rem" }}>
@@ -1657,41 +1695,87 @@ export function Dashboard() {
               </button>
             </div>
 
+            {/* Nova Grid: Mais estreita, espaçada e centralizada */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                gap: "15px",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: "35px", // Espaçamento aumentado de 20px para 35px
+                width: "100%",
+                maxWidth: "650px", // Largura máxima aumentada sutilmente para acomodar o gap
+                justifyContent: "center",
               }}
             >
+              {cartoes.length === 0 && (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: "#999",
+                    gridColumn: "1 / -1",
+                    padding: "2rem",
+                  }}
+                >
+                  Nenhum cartão cadastrado ainda.
+                </p>
+              )}
               {cartoes.map((cartao) => (
                 <div
                   key={cartao.id}
                   style={{
-                    backgroundColor: cartao.cor,
+                    backgroundColor: cartao.cor || cartao.color || "#333",
                     color: "white",
-                    padding: "1.5rem",
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+                    padding: "1.2rem",
+                    borderRadius: "14px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "20px",
+                    gap: "15px",
                     position: "relative",
                     overflow: "hidden",
+                    aspectRatio: "1.58 / 1",
+                    width: "280px",
+                    margin: "0 auto",
                   }}
                 >
                   <div
                     style={{
                       position: "absolute",
-                      top: "-50%",
-                      right: "-20%",
-                      width: "200px",
-                      height: "200px",
-                      backgroundColor: "rgba(255,255,255,0.1)",
+                      top: "-40%",
+                      right: "-15%",
+                      width: "150px",
+                      height: "150px",
+                      backgroundColor: "rgba(255,255,255,0.08)",
                       borderRadius: "50%",
-                      transform: "rotate(30deg)",
+                      transform: "rotate(25deg)",
                     }}
                   />
+
+                  <button
+                    onClick={() => handleDeleteCartao(cartao.id)}
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      background: "transparent",
+                      border: "none",
+                      color: "white",
+                      fontSize: "1.2rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 10,
+                      opacity: 0.7,
+                    }}
+                    title="Excluir Cartão"
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.opacity = "0.7")
+                    }
+                  >
+                    ×
+                  </button>
+
                   <div
                     style={{
                       display: "flex",
@@ -1702,51 +1786,55 @@ export function Dashboard() {
                   >
                     <span
                       style={{
-                        fontSize: "1.1rem",
+                        fontSize: "1.0rem",
                         fontWeight: "600",
-                        letterSpacing: "1px",
+                        letterSpacing: "0.5px",
                       }}
                     >
-                      {cartao.nome}
+                      {cartao.nome || cartao.name}
                     </span>
-                    <span style={{ fontSize: "1.5rem" }}>💳</span>
+                    <span style={{ fontSize: "1.2rem", marginRight: "20px" }}>
+                      💳
+                    </span>
                   </div>
-                  <div style={{ zIndex: 1, marginTop: "10px" }}>
+
+                  <div style={{ zIndex: 1, marginTop: "5px" }}>
                     <p
                       style={{
                         margin: 0,
-                        fontSize: "0.8rem",
+                        fontSize: "0.7rem",
                         opacity: 0.8,
                         textTransform: "uppercase",
-                        letterSpacing: "2px",
+                        letterSpacing: "1.5px",
                       }}
                     >
                       {t.cardEnding}
                     </p>
                     <p
                       style={{
-                        margin: "5px 0 0 0",
-                        fontSize: "1.2rem",
-                        letterSpacing: "3px",
+                        margin: "2px 0 0 0",
+                        fontSize: "1.1rem",
+                        letterSpacing: "2.5px",
                       }}
                     >
-                      **** **** **** {cartao.final}
+                      **** **** **** {cartao.lastDigits}
                     </p>
                   </div>
+
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-end",
                       zIndex: 1,
-                      marginTop: "10px",
+                      marginTop: "auto",
                     }}
                   >
                     <div>
                       <p
                         style={{
                           margin: 0,
-                          fontSize: "0.75rem",
+                          fontSize: "0.65rem",
                           opacity: 0.8,
                           textTransform: "uppercase",
                         }}
@@ -1755,35 +1843,73 @@ export function Dashboard() {
                       </p>
                       <p
                         style={{
-                          margin: "2px 0 0 0",
-                          fontSize: "1.1rem",
+                          margin: "1px 0 0 0",
+                          fontSize: "1.0rem",
                           fontWeight: "bold",
                         }}
                       >
                         R${" "}
-                        {cartao.faturaAtual.toLocaleString("pt-BR", {
+                        {(cartao.currentInvoice || 0).toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
                         })}
                       </p>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        textAlign: "right",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: "2px",
+                      }}
+                    >
                       <p
                         style={{
                           margin: 0,
-                          fontSize: "0.75rem",
+                          fontSize: "0.65rem",
                           opacity: 0.8,
                           textTransform: "uppercase",
                         }}
                       >
                         {t.availableLimit}
                       </p>
-                      <p style={{ margin: "2px 0 0 0", fontSize: "0.95rem" }}>
+                      <p style={{ margin: 0, fontSize: "0.9rem" }}>
                         R${" "}
-                        {(cartao.limite - cartao.faturaAtual).toLocaleString(
-                          "pt-BR",
-                          { minimumFractionDigits: 2 },
-                        )}
+                        {(
+                          cartao.totalLimit - (cartao.currentInvoice || 0)
+                        ).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </p>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "1px",
+                          marginTop: "2px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            backgroundColor: "#EB001B",
+                            opacity: 0.8,
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            backgroundColor: "#F79E1B",
+                            marginLeft: "-6px",
+                            opacity: 0.8,
+                          }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1911,6 +2037,7 @@ export function Dashboard() {
                   {[
                     "#8A05BE",
                     "#FF7A00",
+                    "#FFC107", // Amarelo adicionado aqui!
                     "#107c10",
                     "#0277bd",
                     "#111111",
@@ -2283,11 +2410,12 @@ const translations = {
     exits: "Ausgaben",
     balanceTotal: "Bilanz",
     periodTransactions: "Transaktionen im Zeitraum",
-    noTransactionsMonth: "In diesem Monat wurden keine Transaktionen gefunden.",
+    noTransactionsMonth:
+      "In diesem Monat wurden keine Transaktionen gefunden.",
     newCard: "+ Neue Karte",
     currentInvoice: "Aktuelle Rechnung",
     availableLimit: "Verf. Limit",
-    cardEnding: "Endet mit",
+    cardEnding: "Endet com",
     modalCardTitle: "Neue Karte hinzufügen",
     cardNamePlaceholder: "Name (z.B. Nubank)",
     cardEndPlaceholder: "Endet mit (z.B. 4321)",
@@ -2349,7 +2477,7 @@ const translations = {
     periodTransactions: "Transazioni del Periodo",
     noTransactionsMonth: "Nessuna transazione trovata in questo mese.",
     newCard: "+ Nuova Carta",
-    currentInvoice: "Fattura Attuale",
+    currentInvoice: "Fatura Attuale",
     availableLimit: "Limite Disp.",
     cardEnding: "Termina con",
     modalCardTitle: "Aggiungi Nuova Carta",
