@@ -1,18 +1,17 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
+import { Dashboard } from "./pages/Dashboard";
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* Tela inicial padrão */}
         <Route path="/" element={<Login />} />
-        
-        {/* Tela de dentro do sistema */}
+        <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
