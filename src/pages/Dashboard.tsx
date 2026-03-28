@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-import logoImg from "../assets/logo.jpeg";
+import logoImg from "../assets/logo.png";
 
 type IdiomaType = "pt" | "en" | "es" | "fr" | "de" | "it" | "ja" | "zh" | "ko";
 type AbaType = "home" | "statement" | "cards" | "settings";
@@ -207,7 +207,6 @@ export function Dashboard() {
   const [mesFiltro, setMesFiltro] = useState<number>(dataAtual.getMonth() + 1);
   const [anoFiltro, setAnoFiltro] = useState<number>(dataAtual.getFullYear());
 
-  // NOVO: Estados e Ref para o Date Picker Customizado
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState<number>(dataAtual.getFullYear());
   const monthPickerRef = useRef<HTMLDivElement>(null);
@@ -223,11 +222,25 @@ export function Dashboard() {
   const [novoCartaoCor, setNovoCartaoCor] = useState("#8A05BE");
 
   // ==========================================
+  // 5. ESTADOS: CONFIGURAÇÕES
+  // ==========================================
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem("theme") === "dark",
+  );
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState("");
+  const [feedbackSenha, setFeedbackSenha] = useState({
+    mensagem: "",
+    tipo: "",
+  });
+  // ==========================================
   // EFEITOS (LIFECYCLE)
   // ==========================================
   useEffect(() => {
     localStorage.setItem("abaAtiva", abaAtiva);
   }, [abaAtiva]);
+
   useEffect(() => {
     localStorage.setItem("idioma", idioma);
   }, [idioma]);
@@ -278,6 +291,72 @@ export function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoTransacaoSelecionado]);
+
+  // ==========================================
+  // FUNÇÃO DE TROCA DE SENHA
+  // ==========================================
+  const handleMudarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedbackSenha({ mensagem: "", tipo: "" });
+
+    // 1. Validação: Senha nova não pode ser igual à atual
+    if (novaSenha === senhaAtual) {
+      setFeedbackSenha({
+        mensagem: "A nova senha deve ser diferente da atual.",
+        tipo: "erro",
+      });
+      return;
+    }
+
+    // 2. Validação: Senhas novas não batem
+    if (novaSenha !== confirmarNovaSenha) {
+      setFeedbackSenha({
+        mensagem: "As novas senhas não coincidem.",
+        tipo: "erro",
+      });
+      return;
+    }
+
+    // 3. Validação: Tamanho mínimo (Opcional, geralmente é bom ter)
+    if (novaSenha.length < 6) {
+      setFeedbackSenha({
+        mensagem: "A senha deve ter no mínimo 6 caracteres.",
+        tipo: "erro",
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+
+      // ATENÇÃO: Esta é uma rota padrão. Verifique se o seu Backend (Java/Node)
+      // tem essa rota exata configurada para receber PUT e alterar a senha!
+      await axios.put(
+        "https://swiss-project-api.onrender.com/api/v1/auth/change-password",
+        {
+          currentPassword: senhaAtual,
+          newPassword: novaSenha,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      // Sucesso!
+      setFeedbackSenha({
+        mensagem: "Senha atualizada com sucesso!",
+        tipo: "sucesso",
+      });
+      setSenhaAtual("");
+      setNovaSenha("");
+      setConfirmarNovaSenha("");
+    } catch (erro) {
+      console.error(erro);
+      setFeedbackSenha({
+        mensagem:
+          "Erro ao trocar senha. Verifique se a senha atual está correta.",
+        tipo: "erro",
+      });
+    }
+  };
 
   // ==========================================
   // FUNÇÕES GLOBAIS E API
@@ -2462,21 +2541,322 @@ export function Dashboard() {
         {/* ================= ABA 4: CONFIGURAÇÕES ================= */}
         {abaAtiva === "settings" && (
           <div
-            style={{
-              backgroundColor: "#fff",
-              padding: "3rem 2rem",
-              borderRadius: "16px",
-              textAlign: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-            }}
+            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
           >
-            <h2 style={{ color: "#333", marginBottom: "10px" }}>
-              ⚙️ {t.settings}
-            </h2>
-            <p style={{ color: "#777", maxWidth: "400px", margin: "0 auto" }}>
-              Gerencie as preferências da sua conta, troque sua senha e ative o
-              modo escuro (Dark Mode).
-            </p>
+            {/* CABEÇALHO DA ABA */}
+            <div
+              style={{
+                backgroundColor: "#fff",
+                padding: "1.5rem 2rem",
+                borderRadius: "16px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <h2 style={{ color: "#333", margin: 0, fontSize: "1.3rem" }}>
+                ⚙️ {t.settings}
+              </h2>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: "1.5rem",
+              }}
+            >
+              {/* CARTÃO 1: PERFIL */}
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  padding: "2rem",
+                  borderRadius: "16px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 20px 0",
+                    color: "#111",
+                    fontSize: "1.1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  👤 Meu Perfil
+                </h3>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.8rem",
+                      color: "#888",
+                      fontWeight: "600",
+                      textTransform: "uppercase",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Nome de Usuário
+                  </label>
+                  <input
+                    type="text"
+                    value={nomeUsuario}
+                    disabled
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      borderRadius: "10px",
+                      border: "1px solid #eaeaea",
+                      backgroundColor: "#f5f5f5",
+                      color: "#666",
+                      fontSize: "0.95rem",
+                      boxSizing: "border-box",
+                      cursor: "not-allowed",
+                    }}
+                  />
+                  <p
+                    style={{
+                      margin: "8px 0 0 0",
+                      fontSize: "0.8rem",
+                      color: "#aaa",
+                    }}
+                  >
+                    O nome de usuário não pode ser alterado no momento.
+                  </p>
+                </div>
+              </div>
+
+              {/* CARTÃO 2: APARÊNCIA */}
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  padding: "2rem",
+                  borderRadius: "16px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 20px 0",
+                    color: "#111",
+                    fontSize: "1.1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  🎨 Aparência
+                </h3>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "10px 0",
+                  }}
+                >
+                  <div>
+                    <strong
+                      style={{
+                        display: "block",
+                        color: "#333",
+                        fontSize: "0.95rem",
+                      }}
+                    >
+                      Modo Escuro (Dark Mode)
+                    </strong>
+                    <span style={{ fontSize: "0.8rem", color: "#888" }}>
+                      Altera o tema visual do aplicativo.
+                    </span>
+                  </div>
+                  {/* TOGGLE SWITCH CUSTOMIZADO */}
+                  <div
+                    onClick={() => {
+                      const newMode = !isDarkMode;
+                      setIsDarkMode(newMode);
+                      localStorage.setItem("theme", newMode ? "dark" : "light");
+                    }}
+                    style={{
+                      width: "50px",
+                      height: "26px",
+                      backgroundColor: isDarkMode ? "#107c10" : "#ccc",
+                      borderRadius: "30px",
+                      position: "relative",
+                      cursor: "pointer",
+                      transition: "background-color 0.3s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        backgroundColor: "#fff",
+                        borderRadius: "50%",
+                        position: "absolute",
+                        top: "2px",
+                        left: isDarkMode ? "26px" : "2px",
+                        transition: "left 0.3s",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* CARTÃO 3: SEGURANÇA */}
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  padding: "2rem",
+                  borderRadius: "16px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 20px 0",
+                    color: "#111",
+                    fontSize: "1.1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  🔒 Segurança
+                </h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (novaSenha !== confirmarNovaSenha)
+                      return alert("As novas senhas não coincidem!");
+                    alert(
+                      "Funcionalidade de troca de senha em desenvolvimento!",
+                    );
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "15px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        color: "#888",
+                        fontWeight: "600",
+                        textTransform: "uppercase",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Senha Atual
+                    </label>
+                    <input
+                      type="password"
+                      value={senhaAtual}
+                      onChange={(e) => setSenhaAtual(e.target.value)}
+                      placeholder="••••••••"
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "10px",
+                        border: "1px solid #eaeaea",
+                        outline: "none",
+                        fontSize: "0.95rem",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "15px",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.8rem",
+                          color: "#888",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Nova Senha
+                      </label>
+                      <input
+                        type="password"
+                        value={novaSenha}
+                        onChange={(e) => setNovaSenha(e.target.value)}
+                        placeholder="••••••••"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          borderRadius: "10px",
+                          border: "1px solid #eaeaea",
+                          outline: "none",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.8rem",
+                          color: "#888",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Confirmar Nova Senha
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmarNovaSenha}
+                        onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                        placeholder="••••••••"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          borderRadius: "10px",
+                          border: "1px solid #eaeaea",
+                          outline: "none",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    style={{
+                      marginTop: "10px",
+                      alignSelf: "flex-end",
+                      padding: "10px 24px",
+                      backgroundColor: "#EC0000",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "10px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      boxShadow: "0 4px 10px rgba(236,0,0,0.2)",
+                    }}
+                  >
+                    Atualizar Senha
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         )}
       </div>
